@@ -177,7 +177,7 @@ def printUsageInfo(usageList):
 frameSkip = 30
 
 # No. of seconds before we consider detection lost
-detectThresholdSec = 6
+detectThresholdSec = 20
 if includeClock: clockThresholdSec = 1
 
 # Video input
