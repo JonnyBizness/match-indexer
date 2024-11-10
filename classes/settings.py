@@ -6,3 +6,5 @@ class Settings:
         self.previewVideo = False
         self.previewScale = 0.5
         self.debug = False
+        self.outputFormat = ""
+        

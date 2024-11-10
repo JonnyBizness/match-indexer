@@ -170,3 +170,13 @@ The default output will print the results to the terminal window screen, which y
     > python.exe match-indexer.py OPTIONS LAYOUT FILENAME > output.txt
 
 Again, using the `-c` command-line option to output in CSV format makes this really convenient for further editing in a spreadsheet.
+
+
+## JB
+
+Main running command example:
+`python .\wfgc-match-indexer.py -l "sf6" -f "D:\Videos\Ranbats\Split\Cammy_vs_M. Bison_match_9.mp4" -p -t "sf6" -of "json" > output.txt`
+
+Extra stuff needed I added.
+Create local file in root `startggbearer.txt`
+add a startgg api token there.

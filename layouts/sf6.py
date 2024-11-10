@@ -5,5 +5,8 @@ layout = {
     "originPlayer2" : (1190,12),
     "widthPortrait" : 90,
     "heightPortrait" : 26,
-    "threshold" : 0.9 # Detection threshold (%)
+    "threshold" : 0.9, # Detection threshold (%)
+    "originScore": (600, 546),
+    "widthScore" : 80,
+    "heightScore" : 48,
 }
