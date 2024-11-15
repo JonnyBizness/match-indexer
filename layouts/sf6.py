@@ -6,7 +6,8 @@ layout = {
     "widthPortrait" : 90,
     "heightPortrait" : 26,
     "threshold" : 0.9, # Detection threshold (%)
-    "originScore": (600, 546),
-    "widthScore" : 80,
-    "heightScore" : 48,
+    "originScorep1": (604, 550), #(614, 555)
+    "originScorep2": (638, 550), #(648, 555),
+    "widthScore" : 32, #22
+    "heightScore" : 42, #32
 }
