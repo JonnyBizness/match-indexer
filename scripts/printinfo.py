@@ -78,17 +78,14 @@ def printUsageInfo(usageList, name_list):
         print(u[0] + ':', u[1])
 
 
+### for now just do json. figure rest later.
 def writeOutput(outputContent, outputFormat):
     filename = f"output.{outputFormat}"
-
-    builtOutputString = "{"
-
+    
     if outputFormat == "json":
-        builtOutputString += ''.join(f"{line}," for line in outputContent)
-        builtOutputString += "}"
+        json_data = [match.to_dict() for match in outputContent]
+        builtOutputString = json.dumps(json_data, indent=4)
 
-    else:
-        builtOutputString = ''.join(outputContent)
 
     with open(filename, "w") as file:
         file.write(builtOutputString)

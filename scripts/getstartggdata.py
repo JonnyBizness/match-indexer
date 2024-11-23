@@ -25,6 +25,24 @@ query getEventDetails($eventId: ID!) {
       nodes {
         id
         fullRoundText
+        identifier
+        slots {
+          entrant {
+            name
+            participants {
+              player {
+                gamerTag
+              }
+            }
+          }
+          standing {
+            stats {
+              score {
+                displayValue
+              }
+            }
+          }
+        }
         games{
           id
           winnerId
@@ -44,10 +62,72 @@ query getEventDetails($eventId: ID!) {
 }
 """
 
+def reduceMatchData(data):
+    # Initialize the result dictionary with fullRoundText as the key
+    result = {
+        data["identifier"]: {
+            "roundText" : data["fullRoundText"],
+            "a" : {},
+            "b" : {}
+        }
+    }
+    players = {}
+
+    for game in data["games"]:
+        for selection in game["selections"]:
+            entrant_id = selection["entrant"]["id"]
+            entrant_name = selection["entrant"]["name"]
+            character_name = selection["character"]["name"]
+
+            # Ensure the player exists in the players dictionary
+            if entrant_id not in players:
+                players[entrant_id] = {
+                    "name": entrant_name,
+                    "score": 0,
+                    "characters": set(),  # Use a set to avoid duplicates
+                }
+
+            # Add the character to the player's character set
+            players[entrant_id]["characters"].add(character_name)
+
+        # Update the score of the winning player
+        winner_id = game["winnerId"]
+        if winner_id in players:
+            players[winner_id]["score"] += 1
+
+    # Assign players to 'a' and 'b' in the result structure
+    player_entries = list(players.values())
+
+    if len(player_entries) >= 2:
+        result[data["identifier"]]["a"] = {
+            "name": player_entries[0]["name"],
+            "score": player_entries[0]["score"],
+            "characters": list(player_entries[0]["characters"])
+        }
+        result[data["identifier"]]["b"] = {
+            "name": player_entries[1]["name"],
+            "score": player_entries[1]["score"],
+            "characters": list(player_entries[1]["characters"])
+        }
+    
+    return result
+
+
+
+def getManipulatedInfo(data):
+    matches = []
+    for set in data["data"]["event"]["sets"]["nodes"]:
+        if set.get("games"):
+            matchInfo = reduceMatchData(set)
+            print(matchInfo)
+            matches.append(matchInfo)
+    return matches
+
+
 def getEventInfo(eventId):
   # Define any variables for the query
   variables = {
-    "eventId": 1250662
+    "eventId": eventId
   }
 
   # Set up headers, including authorization
@@ -66,8 +146,13 @@ def getEventInfo(eventId):
   # Check for a successful response
   if response.status_code == 200:
       data = response.json()
-      # print("Response data:", json.dumps(data, indent=4))
-      return data
+
+      #print('raw:',  json.dumps(data, indent=4))
+      
+      reduced = getManipulatedInfo(data)
+      #print(reduced)
+
+      return reduced
   else:
       print(f"Error: {response.status_code}, {response.text}")
       return {}

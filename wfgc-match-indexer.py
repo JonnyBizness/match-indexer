@@ -36,7 +36,7 @@ textPadding = 2
 # Start the time... now!
 timeStart = datetime.datetime.now().replace(microsecond=0)
 # List of strings, joined in the end.
-matches = []
+
 
 
 
@@ -190,9 +190,8 @@ character1Detected = False
 character2Detected = False
 thresholdCount1 = 0
 thresholdCount2 = 0
-previouslyDetected = False
-matchCount = 0 #original way using characters disapearing?
-scoreMatchCount = 0 #my way of determining using score
+
+matchCount = 0 #my way of determining using score
 firstPass = True
 
 
@@ -272,8 +271,9 @@ colorFill = -1
 
 print('settings.debug:', settings.debug)
 
-
-
+## store the matches
+matches = []
+currentMatch = Match()
 
 ###
 ###
@@ -299,13 +299,13 @@ while cap.isOpened():
         # p2 char name
         img2_roi = frame[roiP2[1]:roiP2[1] + roiPh, roiP2[0]:roiP2[0] + roiPw]
         img2_gray = cv2.cvtColor(img2_roi, cv2.COLOR_BGR2GRAY)
-        
         # p1 score
         p1imgScore_roi = frame[roip1Score[1]:roip1Score[1] + roiScoreHeight, roip1Score[0]:roip1Score[0] + roiScoreWidth]
         p1imgScore_gray = cv2.cvtColor(p1imgScore_roi, cv2.COLOR_BGR2GRAY)
         # p2 score
         p2imgScore_roi = frame[roip2Score[1]:roip2Score[1] + roiScoreHeight, roip2Score[0]:roip2Score[0] + roiScoreWidth]
         p2imgScore_gray = cv2.cvtColor(p2imgScore_roi, cv2.COLOR_BGR2GRAY)
+
         # Draw ROIs
         if settings.previewVideo:
             cv2.rectangle(frame, roiP1, (roiP1[0] + roiPw, roiP1[1] + roiPh), colorCyan, borderThickness)
@@ -325,26 +325,18 @@ while cap.isOpened():
             p1ScoreFound = None
             p1BestMatchValue = 0
             for scoreIndex, scoreTemplate in enumerate(score_template_list):
-                
                 p1Match = cv2.matchTemplate(p1imgScore_gray, score_template_list[scoreIndex], cv2.TM_CCOEFF_NORMED)
-                # Get the maximum value of the match for each region
                 maxP1MatchValue = np.max(p1Match)
-
-                # Update p1ScoreFound if a higher-confidence match is found
                 if maxP1MatchValue >= scoreThreshold and maxP1MatchValue > p1BestMatchValue:
                     p1ScoreFound = str(scoreIndex)
                     p1BestMatchValue = maxP1MatchValue
-            
+
             #### p2 ####
             p2ScoreFound = None
             p2BestMatchValue = 0
             for scoreIndex, scoreTemplate in enumerate(score_template_list):
-                
                 p2Match = cv2.matchTemplate(p2imgScore_gray, score_template_list[scoreIndex], cv2.TM_CCOEFF_NORMED)
-                # Get the maximum value of the match for each region
                 maxP2MatchValue = np.max(p2Match)
-
-                # Update p2ScoreFound if a higher-confidence match is found
                 if maxP2MatchValue >= scoreThreshold and maxP2MatchValue > p2BestMatchValue:
                     p2ScoreFound = str(scoreIndex)
                     p2BestMatchValue = maxP2MatchValue
@@ -356,53 +348,60 @@ while cap.isOpened():
                 scoreDetected = True
                 #scoreGameCount +=1 #if needed....
 
+                # END OF CURRENT MATCH.
                 if (int(p1ScoreFound) == 3 or int(p2ScoreFound) == 3):
-                    scoreMatchCount += 1
                     print('Match Ended')
-                    print('# (Match no:' + str(scoreMatchCount) + ')', 'matched on:', time.strftime('%H:%M:%S', time.gmtime(frameCount / fps)), 'score: ' + str(p1ScoreFound) + ' - ' + str(p2ScoreFound))
+                    print('# (Match no:' + str(matchCount) + ')', 'matched on:', time.strftime('%H:%M:%S', time.gmtime(frameCount / fps)), 'score: ' + str(p1ScoreFound) + ' - ' + str(p2ScoreFound))
+                    
+                    matchEnd = frameCount / fps - detectThresholdSec
+                    matchDuration = time.strftime("%H:%M:%S", time.gmtime(matchEnd - matchStart))
+                    
+                    # apend match to matches before kicking off new match
+                    # match = Match(matchCount, matchStartText, name_list[nameIndex1], name_list[nameIndex2], matchDuration, p1ScoreFound, p2ScoreFound)
+                    #matches.append(match)
+
+                    #update current match details
+                    currentMatch.mID = matchCount
+                    currentMatch.mStart = matchStartText
+                    currentMatch.mDuration = matchDuration
+                    currentMatch.p1Score = p1ScoreFound
+                    currentMatch.p2Score = p2ScoreFound
+                    
+                    # apend currentMatch to list of matches
+                    matches.append(currentMatch)
+                    
+                    ## reset for next match
+                    # increase match count
+                    matchCount += 1
+                    # try use match start from characters?
+                    firstPass = True
+                    # feels like i shouldn't have to reset these but it should delay the new match started til it detects?
+                    character1Detected = False
+                    character2Detected = False
 
                 if settings.debug:
-                    print('Start of detecting Scores - for match:', scoreMatchCount)
+                    print('Start of detecting Scores - for match:', matchCount)
                     print('P1! score found:', p1ScoreFound, ' - ', p1BestMatchValue)
                     print('P2! score found:', p2ScoreFound, ' - ', p2BestMatchValue)
-                    #print('### (score no: ' + str(scoreMatchCount) + ')', 'matched on:', time.strftime('%H:%M:%S', time.gmtime(frameCount / fps)))
+                    #print('### (score no: ' + str(matchCount) + ')', 'matched on:', time.strftime('%H:%M:%S', time.gmtime(frameCount / fps)))
         else:
-            ### now looking for the scores to disapear - to confirm what the score was?
-
-            #### p1 ####
-            p1ScoreFound = None
+            ### look for the score detection to drop before looking for scores again.
             p1BestMatchValue = 0
-            for scoreIndex, scoreTemplate in enumerate(score_template_list):
-                
-                p1Match = cv2.matchTemplate(p1imgScore_gray, score_template_list[scoreIndex], cv2.TM_CCOEFF_NORMED)
-                # Get the maximum value of the match for each region
-                maxP1MatchValue = np.max(p1Match)
-
-                # Update p1ScoreFound if a higher-confidence match is found
-                if maxP1MatchValue >= scoreThreshold and maxP1MatchValue > p1BestMatchValue:
-                    p1ScoreFound = str(scoreIndex)
-                    p1BestMatchValue = maxP1MatchValue
-            
-            #### p2 ####
-            p2ScoreFound = None
             p2BestMatchValue = 0
-            for scoreIndex, scoreTemplate in enumerate(score_template_list):
-                
-                p2Match = cv2.matchTemplate(p2imgScore_gray, score_template_list[scoreIndex], cv2.TM_CCOEFF_NORMED)
-                # Get the maximum value of the match for each region
-                maxP2MatchValue = np.max(p2Match)
-
-                # Update p2ScoreFound if a higher-confidence match is found
-                if maxP2MatchValue >= scoreThreshold and maxP2MatchValue > p2BestMatchValue:
-                    p2ScoreFound = str(scoreIndex)
-                    p2BestMatchValue = maxP2MatchValue
-            
-             #### both scores ####
+            p1Match = cv2.matchTemplate(p1imgScore_gray, score_template_list[int(p1ScoreFound)], cv2.TM_CCOEFF_NORMED)
+            p2Match = cv2.matchTemplate(p2imgScore_gray, score_template_list[int(p1ScoreFound)], cv2.TM_CCOEFF_NORMED)
+            maxP1MatchValue = np.max(p1Match)
+            if maxP1MatchValue <= (scoreThreshold - 0.5): #slightly lower threshold
+                p1ScoreFound = None
+            maxP2MatchValue = np.max(p2Match)
+            if maxP2MatchValue <= (scoreThreshold - 0.5):
+                p2ScoreFound = None
+             #### both scores disapeared ####
             if(p1ScoreFound is None and p2ScoreFound is None):
                 scoreDetected = False
                 if settings.debug:
                     print('End of detecting Scores - new game must be starting')
-                    # print('### (score no: ' + str(scoreMatchCount) + ')', 'matched on:', time.strftime('%H:%M:%S', time.gmtime(frameCount / fps)))
+                    # print('### (score no: ' + str(matchCount) + ')', 'matched on:', time.strftime('%H:%M:%S', time.gmtime(frameCount / fps)))
 
 
 
@@ -411,137 +410,120 @@ while cap.isOpened():
         #
         # Player 1 Check
         #
-        # if 'match' detected, keep looking for it til it disapears
-        if character1Detected:
-
-            # Keep monitoring the previously matched template
-            w1, h1 = template_list1[nameIndex1].shape[::-1]
-            res1 = cv2.matchTemplate(img1_gray, template_list1[nameIndex1], cv2.TM_CCOEFF_NORMED)
-            loc1 = np.where(res1 >= threshold)
-
-            if len(loc1[0]):
-                # Still detected
-                thresholdCount1 = 0
-                textName1 = name_list[nameIndex1]
-                if settings.previewVideo:
-                    for pt1 in zip(*loc1[::-1]):
-                        # Draw the detected rectangle
-                        detOrigin = (roiP1[0] + pt1[0], roiP1[1] + pt1[1])
-                        detSize = (w1, h1)
-                        cv2.rectangle(frame, detOrigin, tuple(np.add(detOrigin, detSize)), colorRed, borderThickness)
-
-                        # Draw the detection label above the rectangle
-                        drawLabel(textName1, frame, detOrigin, colorRed)
-            else:
-                # No match
-                if thresholdCount1 > detectThreshold:
-                    # Detection loss timeout
-                    character1Detected = False
-                    firstPass = True
-                else:
-                    # Start timer on detection loss
-                    thresholdCount1 += 1 + frameSkip
-        else:
-        #this else is the initial look for a match
-            # Loop until we find a matching template
+        if not character1Detected:
+            # For all images in template, look for match - this is first look for character
             for templateIndex1, template1 in enumerate(template_list1):
-
                 w1, h1 = template1.shape[::-1]
                 res1 = cv2.matchTemplate(img1_gray, template1, cv2.TM_CCOEFF_NORMED)
                 loc1 = np.where(res1 >= threshold)
 
                 if len(loc1[0]):
-                    # Detected successfully
                     thresholdCount1 = 0
                     character1Detected = True
                     nameIndex1 = templateIndex1
                     if settings.debug:
                         print('### P1', name_list[nameIndex1], '(template no: ' + str(nameIndex1) + ')', 'matched on:', time.strftime('%H:%M:%S', time.gmtime(frameCount / fps)))
-                    break
+                    break   
+        else:
+            # previously matched on a character, keep looking for that character until it disapears.
+            w1, h1 = template_list1[nameIndex1].shape[::-1]
+            res1 = cv2.matchTemplate(img1_gray, template_list1[nameIndex1], cv2.TM_CCOEFF_NORMED)
+            loc1 = np.where(res1 >= threshold)
 
-        
+            if len(loc1[0]):    
+                thresholdCount1 = 0
+                textName1 = name_list[nameIndex1]
+
+                # if not already mentioned. add to match.
+                if textName1 not in currentMatch.p1Characters:
+                    print('appending ' + textName1)
+                    currentMatch.p1Characters.append(textName1)
+
+
+                if settings.previewVideo:
+                    for pt1 in zip(*loc1[::-1]):
+                        detOrigin = (roiP1[0] + pt1[0], roiP1[1] + pt1[1])
+                        detSize = (w1, h1)
+                        cv2.rectangle(frame, detOrigin, tuple(np.add(detOrigin, detSize)), colorRed, borderThickness)
+                        drawLabel(textName1, frame, detOrigin, colorRed)
+
+            # No longer detecting character
+            else:
+                if thresholdCount1 > detectThreshold:
+                    character1Detected = False
+                else:
+                    thresholdCount1 += 1 + frameSkip
+
+            
 
         #
         # Player 2 Check
         #
-        if character2Detected:
-
-            # Keep monitoring the previously matched template
-            w2, h2 = template_list2[nameIndex2].shape[::-1]
-            res2 = cv2.matchTemplate(img2_gray, template_list2[nameIndex2], cv2.TM_CCOEFF_NORMED)
-            loc2 = np.where(res2 >= threshold)
-
-            if len(loc2[0]):
-                # Still detected
-                thresholdCount2 = 0
-                textName2 = name_list[nameIndex2]
-                if settings.previewVideo:
-                    for pt2 in zip(*loc2[::-1]):
-                        # Draw the detected rectangle
-                        detOrigin = (roiP2[0] + pt2[0], roiP2[1] + pt2[1])
-                        detSize = (w2, h2)
-                        cv2.rectangle(frame, detOrigin, tuple(np.add(detOrigin, detSize)), colorBlue, borderThickness)
-
-                        # Draw the detection label above the rectangle
-                        drawLabel(textName2, frame, detOrigin, colorBlue)
-            else:
-                # No match
-                if thresholdCount2 > detectThreshold:
-                    character2Detected = False
-                else:
-                    thresholdCount2 += 1 + frameSkip
-        else:
-
-            # Loop until we find a matching template
+        if not character2Detected:
+            # For all images in template, look for match - this is first look for character
             for templateIndex2, template2 in enumerate(template_list2):
-
                 w2, h2 = template2.shape[::-1]
                 res2 = cv2.matchTemplate(img2_gray, template2, cv2.TM_CCOEFF_NORMED)
                 loc2 = np.where(res2 >= threshold)
 
-                if len(loc2[0]):
-                    # Detected
+                if len(loc2[0]):                    
                     thresholdCount2 = 0
                     character2Detected = True
                     nameIndex2 = templateIndex2
                     if settings.debug:
                         print('### P2', name_list[nameIndex2], '(template no: ' + str(nameIndex2) + ')', 'matched on:', time.strftime('%H:%M:%S', time.gmtime(frameCount / fps)))
                     break
+        else:
+            # previously matched on a character, keep looking for that character until it disapears.
+            w2, h2 = template_list2[nameIndex2].shape[::-1]
+            res2 = cv2.matchTemplate(img2_gray, template_list2[nameIndex2], cv2.TM_CCOEFF_NORMED)
+            loc2 = np.where(res2 >= threshold)
+
+            if len(loc2[0]):
+                thresholdCount2 = 0
+                textName2 = name_list[nameIndex2]
+
+                if textName2 not in currentMatch.p2Characters:
+                    print('appending ' + textName2)
+                    currentMatch.p2Characters.append(textName2)
+
+                if settings.previewVideo:
+                    for pt2 in zip(*loc2[::-1]):
+                        detOrigin = (roiP2[0] + pt2[0], roiP2[1] + pt2[1])
+                        detSize = (w2, h2)
+                        cv2.rectangle(frame, detOrigin, tuple(np.add(detOrigin, detSize)), colorBlue, borderThickness)
+                        drawLabel(textName2, frame, detOrigin, colorBlue)
+
+            # No longer detecting character
+            else:
+                if thresholdCount2 > detectThreshold:
+                    character2Detected = False
+                else:
+                    thresholdCount2 += 1 + frameSkip
+
+            
 
         #
         # Are we detecting a match for the first time?
+        # this is wrong because assumes single character per person.
         #
         if character1Detected and character2Detected and firstPass:
+            print('NEW MATCH STARTED')
+
+            # new match starting so reset current match
+            currentMatch = Match()
+
+
             firstPass = False
             previouslyDetected = True
             matchStart = frameCount / fps
             matchStartText = format(datetime.timedelta(seconds=math.trunc(matchStart)))
-            # Print match start info
-            # print(str(matchCount)+".", name_list[nameIndex1], "vs", name_list[nameIndex2], "started on", matchStartText)
 
-        #
-        # If we previously detected a match but now we don't, then record the end of match
-        # this seems like a kind of fragile way to detect end of match.
-        # alos the variable names are fucked. matchdetected? i think it should be character?
-        #
-        if not character1Detected and not character2Detected and previouslyDetected:
-            firstPass = True
-            previouslyDetected = False
-            matchCount += 1
-            matchEnd = frameCount / fps - detectThresholdSec
-            matchEndText = format(datetime.timedelta(seconds=matchEnd))
-            matchDuration = time.strftime("%H:%M:%S", time.gmtime(matchEnd - matchStart))
-            # Print match end info
-            # print(str(matchCount)+".", name_list[nameIndex1], "vs", name_list[nameIndex2], "ended on", time.strftime('%H:%M:%S', time.gmtime(matchEnd)))
-            # Print match info
-            #print(str(matchCount) + ".", matchStartText, "-", name_list[nameIndex1], "vs", name_list[nameIndex2], "(" + matchDuration + ")")
-            #matches.append(printMatchInfo(matchCount, matchStartText, name_list[nameIndex1], name_list[nameIndex2], matchDuration, settings.outputFormat))
-
-            match = Match(matchCount, matchStartText, name_list[nameIndex1], name_list[nameIndex2], matchDuration)
-            matches.append(match)
-
-            usage_list[nameIndex1] += 1  # Increment character usage (P1)
-            usage_list[nameIndex2] += 1  # Increment character usage (P2)
+        #     matchEnd = frameCount / fps - detectThresholdSec
+        #     matchEndText = format(datetime.timedelta(seconds=matchEnd))
+        #     matchDuration = time.strftime("%H:%M:%S", time.gmtime(matchEnd - matchStart))
+        #     usage_list[nameIndex1] += 1  # Increment character usage (P1)
+        #     usage_list[nameIndex2] += 1  # Increment character usage (P2)
 
         # Preview video during processsing, if enabled
         if settings.previewVideo:
@@ -552,29 +534,14 @@ while cap.isOpened():
                 break
 
     else:
-        # End of video reached, but check that a match wasn't in progress
-        if character1Detected and character2Detected and previouslyDetected:
-            matchCount += 1
-            matchEnd = frameCount / fps
-            matchEndText = format(datetime.timedelta(seconds=matchEnd))
-            matchDuration = time.strftime("%H:%M:%S", time.gmtime(matchEnd - matchStart))
-            
-            print(str(matchCount) + ".", matchStartText, "-", name_list[nameIndex1], "vs", name_list[nameIndex2], "(" + matchDuration + ")")
-            #matches.append(printMatchInfo(matchCount, matchStartText, name_list[nameIndex1], name_list[nameIndex2], matchDuration, settings.outputFormat))
-
-            match = Match(matchCount, matchStartText, name_list[nameIndex1], name_list[nameIndex2], matchDuration)
-            matches.append(match)
-
-            usage_list[nameIndex1] += 1  # Increment character usage (P1)
-            usage_list[nameIndex2] += 1  # Increment character usage (P2)
+        print('End of video')
         break
 
 cap.release()
 cv2.destroyAllWindows()
 timeEnd = datetime.datetime.now().replace(microsecond=0)
 print('--')
-print('Total matches based on characters:', matchCount)
-print('Total matches based on scoreMatchCount:', scoreMatchCount)
+print('Total matches:', matchCount)
 print('Processing Time started:', timeStart)
 print('Processing Time ended:', timeEnd)
 print('Processing Time taken:', (timeEnd - timeStart))

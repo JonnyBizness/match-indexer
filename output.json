@@ -1,1 +1,33 @@
-{<classes.match.Match object at 0x000002105CCDFD90>,<classes.match.Match object at 0x000002105CCDFF40>,<classes.match.Match object at 0x000002105CCDFD30>,}
+[
+    {
+        "mID": 0,
+        "mStart": "0:00:21",
+        "p1": null,
+        "p2": null,
+        "mDuration": "00:06:01",
+        "p1Score": "0",
+        "p2Score": "3",
+        "p1Characters": [
+            "Ken"
+        ],
+        "p2Characters": [
+            "Zangief"
+        ]
+    },
+    {
+        "mID": 1,
+        "mStart": "0:13:38",
+        "p1": null,
+        "p2": null,
+        "mDuration": "00:05:44",
+        "p1Score": "3",
+        "p2Score": "0",
+        "p1Characters": [
+            "Cammy"
+        ],
+        "p2Characters": [
+            "Terry",
+            "Blanka"
+        ]
+    }
+]
